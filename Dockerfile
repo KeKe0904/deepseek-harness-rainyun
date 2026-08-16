@@ -54,6 +54,12 @@ RUN node /usr/local/bin/polyfill-randomuuid.mjs
 COPY patch-trust-fence.mjs /usr/local/bin/
 RUN node /usr/local/bin/patch-trust-fence.mjs
 
+# Built-in password gate (default on via DSH_AUTH=1, see docker-entrypoint.sh):
+# first visit registers a password, afterwards login is required. dsh itself
+# binds only 127.0.0.1; the gate owns the public port.
+COPY auth-proxy.js /usr/local/bin/
+RUN chmod 755 /usr/local/bin/auth-proxy.js
+
 # The agent's working directory; mount a volume here to give it a workspace.
 WORKDIR /workspace
 
