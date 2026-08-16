@@ -1,0 +1,95 @@
+# docker-publish.yml — build the deepseek-harness image and publish on release.
+#
+# Usage:
+#   1. Put this workflow in .github/workflows/ of your GitHub repo
+#      (e.g. fork of this docker/ directory).
+#   2. Add repository secrets:
+#        DOCKERHUB_USERNAME  (Docker Hub user)
+#        DOCKERHUB_TOKEN     (Docker Hub access token, Read/Write/Delete)
+#   3. Push a tag like v0.1.0-rc.6 — or run it manually via Actions -> Run workflow.
+#
+# The image is published to both Docker Hub and ghcr.io; either is usable in
+# the RainYun RCA template's 镜像 field.
+
+name: docker-publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      dsh_version:
+        description: 'npm version of @deepseek-ai/dsh to install (e.g. 0.1.0-rc.6)'
+        required: true
+        default: '0.1.0-rc.6'
+  push:
+    tags:
+      - 'v*'
+
+env:
+  IMAGE_NAME: deepseek-harness
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve DSH version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "dsh_version=${{ inputs.dsh_version }}" >> "$GITHUB_OUTPUT"
+            echo "image_tag=${{ inputs.dsh_version }}" >> "$GITHUB_OUTPUT"
+          else
+            V="${GITHUB_REF_NAME#v}"
+            echo "dsh_version=$V" >> "$GITHUB_OUTPUT"
+            echo "image_tag=$V" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          build-args: DSH_VERSION=${{ steps.version.outputs.dsh_version }}
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.image_tag }}
+
+      - name: Smoke test (boot + health)
+        run: |
+          docker run -d --name smoke -p 3081:3080 -e DSH_HOME=/data -e PORT=3080 \
+            -e 'DSH_TRUSTED_HOSTS=localhost smoke.example.com:3080' \
+            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.image_tag }}
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3081/ >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:3081/ | grep -q '__DSH_BOOT__'
+          docker rm -f smoke >/dev/null
+
+      - name: Push to Docker Hub
+        if: env.DOCKERHUB_USERNAME != ''
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+          TAG=${{ steps.version.outputs.image_tag }}
+          docker tag ${{ env.IMAGE_NAME }}:$TAG $DOCKERHUB_USERNAME/${{ env.IMAGE_NAME }}:$TAG
+          docker tag ${{ env.IMAGE_NAME }}:$TAG $DOCKERHUB_USERNAME/${{ env.IMAGE_NAME }}:latest
+          docker push $DOCKERHUB_USERNAME/${{ env.IMAGE_NAME }}:$TAG
+          docker push $DOCKERHUB_USERNAME/${{ env.IMAGE_NAME }}:latest
+
+      - name: Push to ghcr.io
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+          TAG=${{ steps.version.outputs.image_tag }}
+          IMG=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:$TAG
+          docker tag ${{ env.IMAGE_NAME }}:$TAG $IMG
+          docker push $IMG
