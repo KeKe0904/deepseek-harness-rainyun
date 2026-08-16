@@ -28,7 +28,7 @@
 docker run -d --name dsh \
   -p 3080:3080 \
   -v dsh-data:/data \
-  keke0904/deepseek-harness:0.1.0-rc.6-4
+  keke0904/deepseek-harness:0.1.0-rc.6
 ```
 
 打开 http://localhost:3080 ：
@@ -44,7 +44,7 @@ docker run -d --name dsh \
 ```yaml
 services:
   dsh:
-    image: keke0904/deepseek-harness:0.1.0-rc.6-4
+    image: keke0904/deepseek-harness:0.1.0-rc.6
     container_name: dsh
     restart: unless-stopped
     ports:
@@ -71,9 +71,10 @@ Docker Hub（公开）：[keke0904/deepseek-harness](https://hub.docker.com/r/ke
 
 | Tag | 说明 |
 |---|---|
-| `0.1.0-rc.6-4` | **当前推荐**：含密码登录 + 全部修复 |
+| `0.1.0-rc.6` | **当前推荐**：与上游 npm 版本一致（含密码登录 + 全部修复） |
 | `latest` | 跟随最新构建 |
-| `0.1.0-rc.6-3` / `-2` / `-1` | 历史迭代（雨云按 tag 缓存，升级请换新 tag） |
+
+> **版本策略**：镜像 tag 与上游 `@deepseek-ai/dsh` 的 npm 版本号保持一致，不附加后缀；只有上游发新版时才换 tag。同 tag 被重新推送时，雨云等按 tag 缓存的平台可能不会自动拉新——如需强制更新，把镜像字段临时改为 `latest` 或删除应用重建。
 
 ---
 
@@ -103,7 +104,7 @@ Docker Hub（公开）：[keke0904/deepseek-harness](https://hub.docker.com/r/ke
 
 | 项 | 值 |
 |---|---|
-| 镜像 | `keke0904/deepseek-harness:0.1.0-rc.6-4` |
+| 镜像 | `keke0904/deepseek-harness:0.1.0-rc.6` |
 | 最小资源 | 1 核 / 512MB（推荐 1核1GB+） |
 | Env | `DSH_HOME=/data`、`PORT=3080`、`DSH_TELEMETRY_DISABLED=1` |
 | 持久卷 | 挂载路径 `/data`（与 DSH_HOME 一致），子路径 `dsh`，目录类型 |
@@ -131,7 +132,7 @@ docker build -t deepseek-harness:0.1.0-rc.6 .
 ./smoke-test.sh deepseek-harness:0.1.0-rc.6
 
 # 推送新 tag 到 Docker Hub
-DOCKERHUB_USERNAME=<用户> DOCKERHUB_TOKEN=<访问令牌> DSH_VERSION=0.1.0-rc.6-6 ./push.sh
+DOCKERHUB_USERNAME=<用户> DOCKERHUB_TOKEN=<访问令牌> DSH_VERSION=0.1.0-rc.6 ./push.sh
 ```
 
 - 访问令牌在 https://hub.docker.com/settings/security 创建（Read/Write/Delete）。
@@ -143,7 +144,7 @@ DOCKERHUB_USERNAME=<用户> DOCKERHUB_TOKEN=<访问令牌> DSH_VERSION=0.1.0-rc.
 
 | 现象 | 原因 / 解决 |
 |---|---|
-| 日志报 `mkdir: cannot create directory '/data/profiles': Permission denied` | 旧镜像的已知问题；升级到 `0.1.0-rc.6-4` 即自动修复（记得**换新 tag**，雨云按 tag 缓存镜像） |
+| 日志报 `mkdir: cannot create directory '/data/profiles': Permission denied` | 旧镜像的已知问题；用当前镜像（`0.1.0-rc.6`）重新部署即自动修复。若雨云仍用缓存旧镜像（同 tag 更新不自动拉新），把镜像字段临时改为 `latest` 或删除应用重建 |
 | 报 `trustedHosts entry "http://..." is not a bare host` | 鉴权模式无需此变量；若关闭鉴权，`DSH_TRUSTED_HOSTS` 只填裸 `host[:port]`（新版本会自动清洗 URL 格式） |
 | 页面报 `crypto.randomUUID is not a function` | 旧浏览器/微信内置浏览器；用新版镜像（已内置 polyfill），或换 Chrome/Edge/Firefox/Safari 新版 |
 | agent 无法执行命令，报 `SANDBOX_UNAVAILABLE` | 宿主内核不支持 Landlock（5.13+）；确认容器安全上下文是否放行 |

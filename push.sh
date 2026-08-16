@@ -4,7 +4,11 @@
 # Usage:
 #   DOCKERHUB_USERNAME=<user> DOCKERHUB_TOKEN=<token> ./push.sh
 #   ./push.sh <username> <access-token>          # positional alternative
-#   DSH_VERSION=0.1.0-rc.5 ./push.sh ...          # push a different build
+#   DSH_VERSION=<version> ./push.sh ...           # push a different build
+#
+# Versioning policy: image tags ALWAYS match the upstream npm version of
+# @deepseek-ai/dsh (e.g. 0.1.0-rc.6). No patch suffixes. Bump the tag only
+# when upstream publishes a new version; same-tag re-pushes keep the tag.
 #
 # An access token is a "Personal Access Token" with Read/Write/Delete scope,
 # created at https://hub.docker.com/settings/security.
@@ -12,7 +16,7 @@ set -euo pipefail
 
 USERNAME="${1:-${DOCKERHUB_USERNAME:-}}"
 TOKEN="${2:-${DOCKERHUB_TOKEN:-}}"
-DSH_VERSION="${DSH_VERSION:-0.1.0-rc.6-6}"
+DSH_VERSION="${DSH_VERSION:-0.1.0-rc.6}"
 LOCAL_IMAGE="deepseek-harness:${DSH_VERSION}"
 REMOTE_IMAGE="${USERNAME}/deepseek-harness"
 
