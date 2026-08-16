@@ -80,10 +80,26 @@ elif grep -q '^    host:' "$PROFILE_PATCH" && ! grep -q "port: $PORT" "$PROFILE_
 fi
 
 # /api browser-trust fence authorities, space-separated in DSH_TRUSTED_HOSTS.
+# Each entry must be a bare host[:port] — no scheme, no path, no trailing
+# slash. Normalize common pasted-URL mistakes (http://, paths, trailing /)
+# so users can fill the browser URL verbatim.
 TRUSTED_ARGS=()
 for authority in ${DSH_TRUSTED_HOSTS:-}; do
-  TRUSTED_ARGS+=(--trusted-host "$authority")
+  normalized="$authority"
+  case "$normalized" in
+    http://*)  normalized="${normalized#http://}" ;;
+    https://*) normalized="${normalized#https://}" ;;
+  esac
+  normalized="${normalized%%/*}"   # drop path / query
+  normalized="${normalized%%\?*}"
+  normalized="${normalized%/}"     # drop trailing slash
+  if [ -n "$normalized" ]; then
+    TRUSTED_ARGS+=(--trusted-host "$normalized")
+  fi
 done
+if [ "${#TRUSTED_ARGS[@]}" -gt 0 ]; then
+  echo "[dsh-entrypoint] trust fence authorities: ${TRUSTED_ARGS[*]}"
+fi
 
 echo "[dsh-entrypoint] starting dsh web on 0.0.0.0:${PORT} (DSH_HOME=$DSH_HOME, build=$DSH_DOCKER_BUILD)"
 if [ "$(id -u)" = "0" ]; then
