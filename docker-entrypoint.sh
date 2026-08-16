@@ -13,6 +13,10 @@
 #      itself never runs as root. Landlock confinement works unprivileged.
 set -euo pipefail
 
+# Build marker: bump on every image publish so deployments can verify from the
+# logs which build is actually running (RainYun caches images by tag).
+DSH_DOCKER_BUILD="${DSH_DOCKER_BUILD:-2026-08-16-1}"
+
 RUNTIME_UID="${DSH_RUNTIME_UID:-1000}"
 RUNTIME_GID="${DSH_RUNTIME_GID:-1000}"
 
@@ -81,7 +85,7 @@ for authority in ${DSH_TRUSTED_HOSTS:-}; do
   TRUSTED_ARGS+=(--trusted-host "$authority")
 done
 
-echo "[dsh-entrypoint] starting dsh web on 0.0.0.0:${PORT} (DSH_HOME=$DSH_HOME)"
+echo "[dsh-entrypoint] starting dsh web on 0.0.0.0:${PORT} (DSH_HOME=$DSH_HOME, build=$DSH_DOCKER_BUILD)"
 if [ "$(id -u)" = "0" ]; then
   exec setpriv --reuid="$RUNTIME_UID" --regid="$RUNTIME_GID" --clear-groups \
     env HOME=/home/node DSH_HOME="$DSH_HOME" \
