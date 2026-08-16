@@ -55,6 +55,41 @@ function readJson(file, dflt) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return dflt }
 }
 
+function verifyPasswordSync(password, record) {
+  try {
+    const expected = crypto.scryptSync(password, Buffer.from(record.salt, 'hex'), 64)
+    return crypto.timingSafeEqual(expected, Buffer.from(record.hash, 'hex'))
+  } catch { return false }
+}
+
+// Password managed by the operator via env (recommended for RainYun): the
+// password lives in the deployment spec, not only on the volume, so a volume
+// wipe/recreation cannot reset access back to the registration page. When set,
+// the gate (re)creates the password file from it at startup.
+if (process.env.DSH_AUTH_PASSWORD) {
+  const pw = process.env.DSH_AUTH_PASSWORD
+  if (pw.length < MIN_PASSWORD) {
+    console.error(`[auth] FATAL: DSH_AUTH_PASSWORD is shorter than ${MIN_PASSWORD} characters`)
+    process.exit(1)
+  }
+  const record = readJson(passwordFile, null)
+  if (record && verifyPasswordSync(pw, record)) {
+    console.log('[auth] password file matches DSH_AUTH_PASSWORD')
+  } else {
+    const salt = crypto.randomBytes(16)
+    const hash = crypto.scryptSync(pw, salt, 64)
+    fs.writeFileSync(passwordFile, JSON.stringify({
+      salt: salt.toString('hex'),
+      hash: hash.toString('hex'),
+      created: new Date().toISOString(),
+      source: 'env',
+    }, null, 2), { mode: 0o600 })
+    console.log(record
+      ? '[auth] password file was missing/mismatched — recreated from DSH_AUTH_PASSWORD'
+      : '[auth] password created from DSH_AUTH_PASSWORD (registration page disabled)')
+  }
+}
+
 function scryptHash(password, salt) {
   return new Promise((resolve, reject) => {
     crypto.scrypt(password, salt, 64, (err, key) => (err ? reject(err) : resolve(key)))

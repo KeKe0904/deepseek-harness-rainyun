@@ -18,7 +18,7 @@ set -euo pipefail
 
 # Build marker: bump on every image publish so deployments can verify from the
 # logs which build is actually running (RainYun caches images by tag).
-DSH_DOCKER_BUILD="${DSH_DOCKER_BUILD:-2026-08-16-2}"
+DSH_DOCKER_BUILD="${DSH_DOCKER_BUILD:-2026-08-16-3}"
 
 RUNTIME_UID="${DSH_RUNTIME_UID:-1000}"
 RUNTIME_GID="${DSH_RUNTIME_GID:-1000}"

@@ -84,6 +84,7 @@ Docker Hub（公开）：[keke0904/deepseek-harness](https://hub.docker.com/r/ke
 | `PORT` | `3080` | 公网监听端口（鉴权网关）；改端口需同时删除 `$DSH_HOME/profiles/web/cordis.patch.yml` 后重启（该文件首启写入并固定内部端口） |
 | `DSH_HOME` | `/data` | 数据目录，**务必挂卷**（设置、密钥、会话、profiles、密码都在这里） |
 | `DSH_AUTH` | `1` | 密码登录开关：`1`=开启（默认），`0`=关闭（回到无鉴权模式） |
+| `DSH_AUTH_PASSWORD` | 空 | **推荐**：预置登录密码。密码保存在部署配置里而非仅卷中——即使卷数据被重置（雨云重建容器），重启后也会自动恢复该密码，不会回到"设置密码"页。不填则首次访问注册 |
 | `DSH_TELEMETRY_DISABLED` | `1` | 关闭遥测 |
 | `DEEPSEEK_API_KEY` | 空 | 可选，模型密钥（也可在 Web UI 配置） |
 | `DSH_RUNTIME_UID` / `DSH_RUNTIME_GID` | `1000` | 覆盖运行用户（需与卷属主匹配，一般不用改） |
