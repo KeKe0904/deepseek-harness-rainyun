@@ -127,7 +127,12 @@ function verifySession(value) {
 
 function cookieSession(req) {
   const m = /(?:^|;\s*)dsh_session=([^;]+)/.exec(req.headers.cookie || '')
-  return m ? verifySession(decodeURIComponent(m[1])) : false
+  if (!m) return false
+  try {
+    return verifySession(decodeURIComponent(m[1]))
+  } catch {
+    return false // malformed cookie must never crash the gate
+  }
 }
 
 // ---- trivial per-IP rate limit for /login ----

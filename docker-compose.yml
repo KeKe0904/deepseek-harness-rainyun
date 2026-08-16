@@ -2,7 +2,7 @@
 #
 # Usage:
 #   docker compose up -d --build
-#   open http://localhost:3080   (first-time setup: Settings -> Models)
+#   open http://localhost:3080   (login with DSH_AUTH_PASSWORD below)
 #
 # All user data persists in the named volume dsh-data (mounted at /data,
 # which is DSH_HOME inside the container).
@@ -25,14 +25,12 @@ services:
       - DSH_HOME=/data
       - PORT=3080
       - DSH_TELEMETRY_DISABLED=1
-      # Space-separated host[:port] authorities the /api trust fence accepts.
-      # Local access via http://localhost:3080 is already trusted (loopback);
-      # add your public domain/IP here for remote access, e.g.:
-      # - DSH_TRUSTED_HOSTS=myapp.example.com 192.0.2.10:3080
-      - DSH_TRUSTED_HOSTS=localhost
-      # Optional: provide the model API key via env instead of the web UI
-      # (DeepSeek provider reads DEEPSEEK_API_KEY).
+      # 登录密码（推荐用环境变量托管，卷重置也不丢失）
+      - DSH_AUTH_PASSWORD=ChangeMe123
+      # 可选：模型密钥（也可在 Web UI 配置）
       # - DEEPSEEK_API_KEY=sk-...
+      # 可选：关闭密码登录（回到无鉴权模式）
+      # - DSH_AUTH=0
 
 volumes:
   dsh-data:

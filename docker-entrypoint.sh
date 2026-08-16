@@ -18,7 +18,7 @@ set -euo pipefail
 
 # Build marker: bump on every image publish so deployments can verify from the
 # logs which build is actually running (RainYun caches images by tag).
-DSH_DOCKER_BUILD="${DSH_DOCKER_BUILD:-2026-08-16-3}"
+DSH_DOCKER_BUILD="${DSH_DOCKER_BUILD:-2026-08-16-4}"
 
 RUNTIME_UID="${DSH_RUNTIME_UID:-1000}"
 RUNTIME_GID="${DSH_RUNTIME_GID:-1000}"
@@ -91,32 +91,58 @@ PATCH
     chown "$RUNTIME_UID:$RUNTIME_GID" "$PROFILE_PATCH"
   fi
   echo "[dsh-entrypoint] wrote $PROFILE_PATCH (bind ${BIND_HOST}:${BIND_PORT})"
-elif grep -q '^    host:' "$PROFILE_PATCH" && ! grep -q "port: $BIND_PORT" "$PROFILE_PATCH"; then
-  echo "[dsh-entrypoint] warning: $PROFILE_PATCH pins another port than $BIND_PORT; delete the file (or edit it) to re-bind" >&2
+elif ! grep -q "port: $BIND_PORT" "$PROFILE_PATCH"; then
+  # Self-heal the managed webserver row when the mode/port changed (e.g.
+  # auth <-> legacy, or a PORT change in legacy mode); other user edits in the
+  # patch are preserved. Previously this required deleting the file manually.
+  node - "$PROFILE_PATCH" "$BIND_HOST" "$BIND_PORT" <<'NODE'
+const [f, host, port] = process.argv.slice(2)
+const fs = require('fs')
+let d = fs.readFileSync(f, 'utf8')
+const start = d.indexOf('- id: webserver')
+if (start === -1) { console.error('[dsh-entrypoint] webserver row not found in patch'); process.exit(1) }
+const next = d.indexOf('\n- id:', start + 3)
+const end = next === -1 ? d.length : next
+let block = d.slice(start, end)
+const set = (key, val) => {
+  const re = new RegExp('^\\s*' + key + ':.*$', 'm')
+  block = re.test(block)
+    ? block.replace(new RegExp('^(\\s*' + key + ':).*$', 'm'), '$1 ' + val)
+    : block + '\n    ' + key + ': ' + val
+}
+set('host', "'" + host + "'")
+set('port', port)
+fs.writeFileSync(f, d.slice(0, start) + block + d.slice(end))
+NODE
+  if [ "$(id -u)" = "0" ]; then
+    chown "$RUNTIME_UID:$RUNTIME_GID" "$PROFILE_PATCH"
+  fi
+  echo "[dsh-entrypoint] updated webserver bind to ${BIND_HOST}:${BIND_PORT} (mode/port change)"
 fi
 
-# /api browser-trust fence authorities, space-separated in DSH_TRUSTED_HOSTS.
-# Each entry must be a bare host[:port] — no scheme, no path, no trailing
-# slash. Normalize common pasted-URL mistakes (http://, paths, trailing /)
-# so users can fill the browser URL verbatim. Only meaningful in legacy mode;
-# in auth mode dsh is loopback-only and the gate strips Origin, so the fence
-# passes without any entry.
+# /api browser-trust fence authorities. Only meaningful in legacy mode
+# (DSH_AUTH=0, dsh on 0.0.0.0): in auth mode dsh is loopback-only and the gate
+# strips Origin, so the fence passes without any entry and DSH_TRUSTED_HOSTS
+# is dead config. Entries must be bare host[:port]; normalize common
+# pasted-URL mistakes (http://, paths, trailing /).
 TRUSTED_ARGS=()
-for authority in ${DSH_TRUSTED_HOSTS:-}; do
-  normalized="$authority"
-  case "$normalized" in
-    http://*)  normalized="${normalized#http://}" ;;
-    https://*) normalized="${normalized#https://}" ;;
-  esac
-  normalized="${normalized%%/*}"   # drop path / query
-  normalized="${normalized%%\?*}"
-  normalized="${normalized%/}"     # drop trailing slash
-  if [ -n "$normalized" ]; then
-    TRUSTED_ARGS+=(--trusted-host "$normalized")
+if [ "$AUTH_MODE" = "0" ]; then
+  for authority in ${DSH_TRUSTED_HOSTS:-}; do
+    normalized="$authority"
+    case "$normalized" in
+      http://*)  normalized="${normalized#http://}" ;;
+      https://*) normalized="${normalized#https://}" ;;
+    esac
+    normalized="${normalized%%/*}"   # drop path / query
+    normalized="${normalized%%\?*}"
+    normalized="${normalized%/}"     # drop trailing slash
+    if [ -n "$normalized" ]; then
+      TRUSTED_ARGS+=(--trusted-host "$normalized")
+    fi
+  done
+  if [ "${#TRUSTED_ARGS[@]}" -gt 0 ]; then
+    echo "[dsh-entrypoint] trust fence authorities: ${TRUSTED_ARGS[*]}"
   fi
-done
-if [ "${#TRUSTED_ARGS[@]}" -gt 0 ]; then
-  echo "[dsh-entrypoint] trust fence authorities: ${TRUSTED_ARGS[*]}"
 fi
 
 run_as_node() {

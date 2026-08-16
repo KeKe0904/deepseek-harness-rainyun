@@ -13,7 +13,7 @@ ARG DSH_VERSION=0.1.0-rc.6
 # node-pty / koffi build native code at install time, so the build stage needs
 # a toolchain; the runtime stage ships only the compiled artifacts.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git python3 make g++ \
+ && apt-get install -y --no-install-recommends python3 make g++ \
  && rm -rf /var/lib/apt/lists/* \
  && npm install -g @deepseek-ai/dsh@${DSH_VERSION} --no-audit --no-fund
 
@@ -43,16 +43,12 @@ COPY --from=dsh-install /usr/local/lib/node_modules /usr/local/lib/node_modules
 # dsh 0.1.0-rc.6 calls crypto.randomUUID() unguarded in the browser image
 # draft-attachment path; browsers without it (Chrome<92/FF<95/Safari<15.4, old
 # WebViews) throw "crypto.randomUUID is not a function". Inject a polyfill
-# into the served index.html so all bundles are covered.
-COPY polyfill-randomuuid.mjs /usr/local/bin/
-RUN node /usr/local/bin/polyfill-randomuuid.mjs
-
-# Operator opt-out for the /api browser-trust fence: DSH_TRUST_FENCE=0 lets
-# the app work from any host without filling DSH_TRUSTED_HOSTS (RainYun's
-# public address changes would otherwise require reconfiguration). Default
-# (unset) keeps the fence intact.
-COPY patch-trust-fence.mjs /usr/local/bin/
-RUN node /usr/local/bin/patch-trust-fence.mjs
+# into the served index.html so all bundles are covered. The second patch adds
+# an operator opt-out (DSH_TRUST_FENCE=0) for the /api browser-trust fence,
+# used only in legacy mode (DSH_AUTH=0); default keeps the fence intact.
+COPY polyfill-randomuuid.mjs patch-trust-fence.mjs /usr/local/bin/
+RUN node /usr/local/bin/polyfill-randomuuid.mjs \
+ && node /usr/local/bin/patch-trust-fence.mjs
 
 # Built-in password gate (default on via DSH_AUTH=1, see docker-entrypoint.sh):
 # first visit registers a password, afterwards login is required. dsh itself

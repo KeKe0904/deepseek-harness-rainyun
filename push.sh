@@ -12,7 +12,7 @@ set -euo pipefail
 
 USERNAME="${1:-${DOCKERHUB_USERNAME:-}}"
 TOKEN="${2:-${DOCKERHUB_TOKEN:-}}"
-DSH_VERSION="${DSH_VERSION:-0.1.0-rc.6}"
+DSH_VERSION="${DSH_VERSION:-0.1.0-rc.6-6}"
 LOCAL_IMAGE="deepseek-harness:${DSH_VERSION}"
 REMOTE_IMAGE="${USERNAME}/deepseek-harness"
 

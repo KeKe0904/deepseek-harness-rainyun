@@ -127,11 +127,11 @@ Docker Hub（公开）：[keke0904/deepseek-harness](https://hub.docker.com/r/ke
 # 构建（默认 npm 包 0.1.0-rc.6；换版本：--build-arg DSH_VERSION=<version>）
 docker build -t deepseek-harness:0.1.0-rc.6 .
 
-# 冒烟测试（8 项：绑定/信任围栏/沙箱/持久化/健康检查等，全过才退出 0）
+# 冒烟测试（网关/登录/沙箱/持久化/legacy/健康，全过才退出 0）
 ./smoke-test.sh deepseek-harness:0.1.0-rc.6
 
 # 推送新 tag 到 Docker Hub
-DOCKERHUB_USERNAME=<用户> DOCKERHUB_TOKEN=<访问令牌> DSH_VERSION=0.1.0-rc.6 ./push.sh
+DOCKERHUB_USERNAME=<用户> DOCKERHUB_TOKEN=<访问令牌> DSH_VERSION=0.1.0-rc.6-6 ./push.sh
 ```
 
 - 访问令牌在 https://hub.docker.com/settings/security 创建（Read/Write/Delete）。
