@@ -44,10 +44,12 @@
 
 ## 5. 版本 — VolumeMounts 持久化卷挂载
 
-| 名称 | 挂载路径 | 内容类型 | 说明 |
-|---|---|---|---|
-| `dsh-data` | `/data` | 目录 | **必填**。存放全部用户数据（设置 settings.yaml、API密钥 .credentials.yaml、会话、profiles、storages），容器重建不丢失 |
-| `workspace` | `/workspace` | 目录 | 可选。agent 的工作区；不挂则每次重建后工作区是空的 |
+> ⚠️ **挂载路径（容器内路径）必填，且必须与 Env 中的 `DSH_HOME` 一致（=`/data`）**。dsh 的所有用户数据（settings.yaml、.credentials.yaml、会话、profiles、storages）都存于 `$DSH_HOME`；路径不一致时数据落不到卷里，容器重建即丢失。
+
+| 名称 | 挂载路径（容器内） | 子路径 | 内容类型 | 说明 |
+|---|---|---|---|---|
+| `dsh-data` | `/data` | 留空（或 `dsh`） | 目录 | **必填**。与 Env `DSH_HOME=/data` 对应 |
+| `workspace` | `/workspace` | 留空 | 目录 | 可选。agent 工作区；不挂则每次重建后工作区为空 |
 
 > 说明：雨云每个项目有共享磁盘，App 挂载的是项目磁盘中的子路径；多个 App 可共用。
 > 容器以非 root 用户（uid 1000）运行，镜像内已预先 chown 好 `/data` 与 `/workspace`，雨云自动创建的卷会继承属主，无需额外配置。
