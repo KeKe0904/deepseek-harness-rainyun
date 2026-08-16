@@ -97,8 +97,16 @@
 
 ## 11. 部署后验收清单
 
-- [ ] 容器日志出现 `[dsh-entrypoint] starting dsh web on 0.0.0.0:3080`
+- [ ] 容器日志出现 `[dsh-entrypoint] starting dsh web on 0.0.0.0:3080`（若首次出现 `fixing ownership of volume roots` 属正常，说明卷属主已自动修复）
 - [ ] 浏览器打开雨云分配的公网地址，首页正常加载（无 /api 403）
 - [ ] 设置→模型 填入 DeepSeek API Key 保存成功
 - [ ] 选择一个工作区，发一条任务（如 `Summarize this repository`）能正常执行 —— 这一步同时验证**进程沙箱**（bash 工具可用）
 - [ ] 重启应用后设置/会话仍在（卷持久化生效）
+
+## 12. 常见问题排查
+
+| 现象 | 原因 | 解决 |
+|---|---|---|
+| 日志报 `mkdir: cannot create directory '/data/profiles': Permission denied` | 雨云持久卷属主是 root，旧镜像以非 root 直接启动 | 使用最新镜像（已修复：入口自动修复卷属主后降权运行）；或删除应用重建成新镜像 |
+| 页面能打开但接口 403 | `DSH_TRUSTED_HOSTS` 未填公网访问地址 | 在部署参数/环境变量补填雨云分配的公网域名或 `IP:端口`（空格分隔多个）后重启 |
+| agent 无法执行命令，报 `SANDBOX_UNAVAILABLE` | 雨云运行环境不支持 Landlock/bwrap 沙箱 | 联系雨云确认内核版本与安全上下文支持；Landlock 需内核 5.13+ |

@@ -81,7 +81,7 @@ docker run -d --name dsh \
 
 ### 运行用户（安全加固）
 
-容器以**非 root** 用户 `node`（uid 1000）运行，`/data` 与 `/workspace` 在镜像内已 chown 给该用户，新建命名卷自动继承属主。若用 `-v /主机目录:/data` 这类 bind mount，请确保主机目录对 uid 1000 可写（如 `chown -R 1000:1000 /主机目录`），或改用命名卷。特殊情况下可用 `--user 0:0` 以 root 运行（不推荐）。
+容器以 root 启动入口脚本，**自动修复持久卷属主后降权为 `node`（uid 1000）运行 dsh**——harness 本身永不 root 运行，Landlock 沙箱保持 full。这解决了雨云/K8s 持久卷**不继承镜像属主**（卷根是 root，导致 `mkdir /data/profiles` 报 Permission denied）的问题：首次启动会自动 `chown` 卷数据到 uid 1000（幂等，仅需要时执行）。bind mount 场景建议仍用命名卷。特殊情况下可用 `DSH_RUNTIME_UID`/`DSH_RUNTIME_GID` 覆盖运行用户（需与卷属主匹配）。
 
 ### 进程沙箱说明
 
