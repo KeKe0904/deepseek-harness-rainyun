@@ -47,6 +47,13 @@ COPY --from=dsh-install /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY polyfill-randomuuid.mjs /usr/local/bin/
 RUN node /usr/local/bin/polyfill-randomuuid.mjs
 
+# Operator opt-out for the /api browser-trust fence: DSH_TRUST_FENCE=0 lets
+# the app work from any host without filling DSH_TRUSTED_HOSTS (RainYun's
+# public address changes would otherwise require reconfiguration). Default
+# (unset) keeps the fence intact.
+COPY patch-trust-fence.mjs /usr/local/bin/
+RUN node /usr/local/bin/patch-trust-fence.mjs
+
 # The agent's working directory; mount a volume here to give it a workspace.
 WORKDIR /workspace
 
