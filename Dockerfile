@@ -43,12 +43,12 @@ COPY --from=dsh-install /usr/local/lib/node_modules /usr/local/lib/node_modules
 # The agent's working directory; mount a volume here to give it a workspace.
 WORKDIR /workspace
 
-# Run unprivileged: the official node image ships a `node` user (uid 1000);
-# it owns the data and workspace roots, so fresh named volumes inherit that
-# ownership. Landlock confinement works unprivileged (it restricts the process
-# itself), so the sandbox keeps full enforcement.
-# NOTE: mkdir/chown must come BEFORE the VOLUME declaration — changes made to
-# a VOLUME path after it is declared are discarded.
+# The official node image ships a `node` user (uid 1000). We do NOT set USER:
+# the entrypoint starts as root, self-heals persistent-volume ownership (K8s /
+# RainYun volumes are root-owned and do not inherit image ownership), then
+# drops privileges to uid 1000 before execing dsh — so the harness itself
+# never runs as root, and Landlock confinement (which works unprivileged)
+# keeps full enforcement.
 RUN mkdir -p /data /workspace \
  && chown -R node:node /data /workspace
 
@@ -63,5 +63,5 @@ HEALTHCHECK --interval=20s --timeout=5s --start-period=30s --retries=5 \
 COPY docker-entrypoint.sh /usr/local/bin/dsh-entrypoint
 RUN chmod 755 /usr/local/bin/dsh-entrypoint
 
-USER node
+# No USER on purpose: the entrypoint drops to uid 1000 itself (see above).
 ENTRYPOINT ["dsh-entrypoint"]
