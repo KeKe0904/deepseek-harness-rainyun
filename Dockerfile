@@ -40,6 +40,13 @@ RUN apt-get update \
 COPY --from=dsh-install /usr/local/bin /usr/local/bin
 COPY --from=dsh-install /usr/local/lib/node_modules /usr/local/lib/node_modules
 
+# dsh 0.1.0-rc.6 calls crypto.randomUUID() unguarded in the browser image
+# draft-attachment path; browsers without it (Chrome<92/FF<95/Safari<15.4, old
+# WebViews) throw "crypto.randomUUID is not a function". Inject a polyfill
+# into the served index.html so all bundles are covered.
+COPY polyfill-randomuuid.mjs /usr/local/bin/
+RUN node /usr/local/bin/polyfill-randomuuid.mjs
+
 # The agent's working directory; mount a volume here to give it a workspace.
 WORKDIR /workspace
 
